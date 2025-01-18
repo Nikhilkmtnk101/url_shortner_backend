@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"github.com/nikhil/url-shortner-backend/internal/models"
+	"github.com/nikhil/url-shortner-backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -11,9 +11,10 @@ func RunMigrations(db *gorm.DB) error {
 
 	// Add migrations here
 	err := db.AutoMigrate(
-		&models.User{},
-		&models.Session{},
-		&models.LoginAttempt{},
+		&model.User{},
+		&model.Session{},
+		&model.LoginAttempt{},
+		&model.URL{},
 	)
 
 	if err != nil {

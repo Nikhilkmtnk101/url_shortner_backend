@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/nikhil/url-shortner-backend/internal/models"
+	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 )
 
@@ -15,10 +15,10 @@ func NewUserService(userRepo *repository.UserRepository) *UserService {
 	}
 }
 
-func (s *UserService) GetAllUsers() ([]models.User, error) {
+func (s *UserService) GetAllUsers() ([]model.User, error) {
 	return s.userRepo.FindAll()
 }
 
-func (s *UserService) GetUserByID(id uint) (*models.User, error) {
+func (s *UserService) GetUserByID(id uint) (*model.User, error) {
 	return s.userRepo.FindByID(id)
 }

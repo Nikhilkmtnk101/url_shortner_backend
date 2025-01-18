@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/nikhil/url-shortner-backend/internal/models"
+	"github.com/nikhil/url-shortner-backend/internal/model"
 	"gorm.io/gorm"
 	"time"
 )
@@ -19,21 +19,21 @@ func NewLoginAttemptRepository(db *gorm.DB) *LoginAttemptRepository {
 }
 
 // Create adds a new login attempt to the database
-func (r *LoginAttemptRepository) Create(attempt *models.LoginAttempt) error {
+func (r *LoginAttemptRepository) Create(attempt *model.LoginAttempt) error {
 	return r.db.Create(attempt).Error
 }
 
 // GetRecentFailedAttempts retrieves recent failed login attempts by IP
-func (r *LoginAttemptRepository) GetRecentFailedAttempts(ip string, since time.Time) ([]models.LoginAttempt, error) {
-	var attempts []models.LoginAttempt
+func (r *LoginAttemptRepository) GetRecentFailedAttempts(ip string, since time.Time) ([]model.LoginAttempt, error) {
+	var attempts []model.LoginAttempt
 	err := r.db.Where("ip = ? AND status = ? AND created_at >= ?", ip, "failure", since).
 		Find(&attempts).Error
 	return attempts, err
 }
 
 // GetUserRecentFailedAttempts retrieves recent failed login attempts for a specific user
-func (r *LoginAttemptRepository) GetUserRecentFailedAttempts(userID uint, since time.Time) ([]models.LoginAttempt, error) {
-	var attempts []models.LoginAttempt
+func (r *LoginAttemptRepository) GetUserRecentFailedAttempts(userID uint, since time.Time) ([]model.LoginAttempt, error) {
+	var attempts []model.LoginAttempt
 	err := r.db.Where("user_id = ? AND status = ? AND created_at >= ?", userID, "failure", since).
 		Find(&attempts).Error
 	return attempts, err
@@ -41,5 +41,5 @@ func (r *LoginAttemptRepository) GetUserRecentFailedAttempts(userID uint, since 
 
 // CleanupOldAttempts deletes old login attempts to keep the table size manageable
 func (r *LoginAttemptRepository) CleanupOldAttempts(before time.Time) error {
-	return r.db.Where("created_at < ?", before).Delete(&models.LoginAttempt{}).Error
+	return r.db.Where("created_at < ?", before).Delete(&model.LoginAttempt{}).Error
 }

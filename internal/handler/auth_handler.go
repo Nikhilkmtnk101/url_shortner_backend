@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/nikhil/url-shortner-backend/internal/dto"
-	"github.com/nikhil/url-shortner-backend/internal/models"
+	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/service"
 	"net/http"
 )
@@ -22,7 +22,7 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	var user *models.User
+	var user *model.User
 	var err error
 	if user, err = h.authService.SignUp(&signUpReq); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -36,8 +36,6 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-	c.ClientIP()
-	c.Request.UserAgent()
 	var credentials struct {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -48,7 +46,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.authService.Login(credentials.Email, credentials.Password, "", "")
+	token, err := h.authService.Login(credentials.Email, credentials.Password, c.Request.UserAgent(), c.ClientIP())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return

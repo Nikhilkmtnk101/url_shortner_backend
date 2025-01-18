@@ -6,7 +6,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/nikhil/url-shortner-backend/constants"
 	"github.com/nikhil/url-shortner-backend/internal/dto"
-	"github.com/nikhil/url-shortner-backend/internal/models"
+	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -41,7 +41,7 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) SignUp(req *dto.SignupRequest) (*models.User, error) {
+func (s *AuthService) SignUp(req *dto.SignupRequest) (*model.User, error) {
 	if _, err := s.userRepo.FindByEmail(req.Email); err == nil {
 		return nil, errors.New("email already exists")
 	}
@@ -52,7 +52,7 @@ func (s *AuthService) SignUp(req *dto.SignupRequest) (*models.User, error) {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	user := &models.User{
+	user := &model.User{
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		Name:     req.Name,
@@ -99,7 +99,7 @@ func (s *AuthService) Login(email, password, userAgent, ip string) (*dto.TokenRe
 	}
 
 	// Create new session
-	session := &models.Session{
+	session := &model.Session{
 		UserID:       user.ID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -124,7 +124,7 @@ func (s *AuthService) Login(email, password, userAgent, ip string) (*dto.TokenRe
 	}, nil
 }
 
-func (s *AuthService) generateTokenPair(user *models.User) (string, string, error) {
+func (s *AuthService) generateTokenPair(user *model.User) (string, string, error) {
 	// Generate access token
 	accessToken, err := s.createAccessToken(user)
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *AuthService) generateTokenPair(user *models.User) (string, string, erro
 	return accessToken, refreshToken, nil
 }
 
-func (s *AuthService) createAccessToken(user *models.User) (string, error) {
+func (s *AuthService) createAccessToken(user *model.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
@@ -152,7 +152,7 @@ func (s *AuthService) createAccessToken(user *models.User) (string, error) {
 	return token.SignedString([]byte(s.accessSecret))
 }
 
-func (s *AuthService) createRefreshToken(user *models.User) (string, error) {
+func (s *AuthService) createRefreshToken(user *model.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
@@ -180,7 +180,7 @@ func (s *AuthService) isAccountLocked(userID uint) bool {
 }
 
 func (s *AuthService) recordLoginAttempt(userID uint, ip, userAgent, status, reason string) {
-	attempt := &models.LoginAttempt{
+	attempt := &model.LoginAttempt{
 		UserID:    userID,
 		IP:        ip,
 		UserAgent: userAgent,
@@ -191,7 +191,7 @@ func (s *AuthService) recordLoginAttempt(userID uint, ip, userAgent, status, rea
 	s.loginAttemptRepo.Create(attempt)
 }
 
-func (s *AuthService) GetActiveSessions(userID uint) ([]models.Session, error) {
+func (s *AuthService) GetActiveSessions(userID uint) ([]model.Session, error) {
 	return s.tokenRepo.GetActiveSessions(userID)
 }
 
