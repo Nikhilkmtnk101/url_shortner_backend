@@ -1,10 +1,17 @@
-// internal/config/config.go
 package config
 
 import (
 	"fmt"
 	"github.com/spf13/viper"
 )
+
+type EmailConfig struct {
+	SMTPHost     string `mapstructure:"SMTP_HOST" mapstructure:"smtp_host"`
+	SMTPPort     int    `mapstructure:"SMTP_PORT" mapstructure:"smtp_port"`
+	SMTPUsername string `mapstructure:"SMTP_USERNAME" mapstructure:"smtp_username"`
+	SMTPPassword string `mapstructure:"SMTP_PASSWORD" mapstructure:"smtp_password"`
+	FromEmail    string `mapstructure:"FROM_EMAIL" mapstructure:"from_email"`
+}
 
 type Config struct {
 	ServerPort       string `mapstructure:"SERVER_PORT"`
@@ -15,6 +22,8 @@ type Config struct {
 	DBName           string `mapstructure:"DB_NAME"`
 	AccessJWTSecret  string `mapstructure:"ACCESS_JWT_SECRET"`
 	RefreshJWTSecret string `mapstructure:"REFRESH_JWT_SECRET"`
+	// Add mapstructure:",squash" to properly handle embedded struct
+	EmailConfig `mapstructure:",squash"`
 }
 
 func Load() (*Config, error) {
@@ -41,6 +50,22 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Ensure Viper reads all environment variables correctly
+	viper.BindEnv("SMTP_HOST")
+	viper.BindEnv("SMTP_PORT")
+	viper.BindEnv("SMTP_USERNAME")
+	viper.BindEnv("SMTP_PASSWORD")
+	viper.BindEnv("FROM_EMAIL")
+	viper.BindEnv("SERVER_PORT")
+	viper.BindEnv("DB_HOST")
+	viper.BindEnv("DB_PORT")
+	viper.BindEnv("DB_USER")
+	viper.BindEnv("DB_PASSWORD")
+	viper.BindEnv("DB_NAME")
+	viper.BindEnv("ACCESS_JWT_SECRET")
+	viper.BindEnv("REFRESH_JWT_SECRET")
+
+	// Unmarshal into the Config struct
 	var config Config
 	err := viper.Unmarshal(&config)
 	if err != nil {
@@ -55,9 +80,14 @@ func Load() (*Config, error) {
 	if config.AccessJWTSecret == "" {
 		return nil, fmt.Errorf("ACCESS_JWT_SECRET is required")
 	}
-	
+
 	if config.RefreshJWTSecret == "" {
 		return nil, fmt.Errorf("ACCESS_JWT_SECRET is required")
+	}
+
+	// Make sure email config is set
+	if config.EmailConfig.SMTPHost == "" || config.EmailConfig.SMTPPort == 0 || config.EmailConfig.SMTPUsername == "" || config.EmailConfig.SMTPPassword == "" || config.EmailConfig.FromEmail == "" {
+		return nil, fmt.Errorf("required email configuration missing")
 	}
 
 	return &config, nil

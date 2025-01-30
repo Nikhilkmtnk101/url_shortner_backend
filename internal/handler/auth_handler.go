@@ -5,15 +5,20 @@ import (
 	"github.com/nikhil/url-shortner-backend/internal/dto"
 	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/service"
+	"github.com/nikhil/url-shortner-backend/internal/service/otp_service"
 	"net/http"
 )
 
 type AuthHandler struct {
 	authService *service.AuthService
+	otpService  otp_service.IOTPService
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService *service.AuthService, otpService otp_service.IOTPService) *AuthHandler {
+	return &AuthHandler{
+		authService: authService,
+		otpService:  otpService,
+	}
 }
 
 func (h *AuthHandler) SignUp(c *gin.Context) {
@@ -53,4 +58,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func (h *AuthHandler) SendOTP(c *gin.Context) {
+	var request struct {
+		Email string `json:"email" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	err := h.otpService.SendOTP(request.Email, "576")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "otp successfully sent"})
 }

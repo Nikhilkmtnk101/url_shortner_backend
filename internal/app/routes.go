@@ -6,6 +6,8 @@ import (
 	"github.com/nikhil/url-shortner-backend/internal/middleware"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 	"github.com/nikhil/url-shortner-backend/internal/service"
+	"github.com/nikhil/url-shortner-backend/internal/service/email_service"
+	"github.com/nikhil/url-shortner-backend/internal/service/otp_service"
 	"gorm.io/gorm"
 )
 
@@ -32,11 +34,14 @@ func (a *App) setupRoutes(db *gorm.DB) {
 	loginAttemptRepo := repository.NewLoginAttemptRepository(db)
 	urlRepo := repository.NewURLRepository(db)
 
+	emailService := email_service.GetSMTPEmailService(a.cfg.EmailConfig)
+	otpService := otp_service.NewOTPService(emailService)
+
 	authService := service.NewAuthService(userRepo, sessionRepo, loginAttemptRepo, a.cfg.AccessJWTSecret, a.cfg.RefreshJWTSecret)
 	userService := service.NewUserService(userRepo)
 	urlService := service.NewURLService(urlRepo)
 
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, otpService)
 	userHandler := handler.NewUserHandler(userService)
 	urlHandler := handler.NewURLHandler(urlService)
 
@@ -49,6 +54,7 @@ func (a *App) setupRoutes(db *gorm.DB) {
 	{
 		authRouterGroup.POST("/signup", authHandler.SignUp)
 		authRouterGroup.POST("/login", authHandler.Login)
+		authRouterGroup.POST("/send-otp", authHandler.SendOTP)
 	}
 
 	// URL redirect route (public)
