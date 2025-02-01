@@ -4,10 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nikhil/url-shortner-backend/internal/handler"
 	"github.com/nikhil/url-shortner-backend/internal/middleware"
+	"github.com/nikhil/url-shortner-backend/internal/middleware/logger"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 	"github.com/nikhil/url-shortner-backend/internal/service"
 	"github.com/nikhil/url-shortner-backend/internal/service/email_service"
 	"github.com/nikhil/url-shortner-backend/internal/service/otp_service"
+	"github.com/nikhil/url-shortner-backend/pkg/redis"
 	"gorm.io/gorm"
 )
 
@@ -28,33 +30,37 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func (a *App) setupRoutes(db *gorm.DB) {
-	userRepo := repository.NewUserRepository(db)
-	sessionRepo := repository.NewSessionRepository(db)
-	loginAttemptRepo := repository.NewLoginAttemptRepository(db)
+func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
+	userRepo := repository.NewUserRepository(db, cache)
+	otpRepo := repository.NewOTPRepository(cache)
+	sessionRepo := repository.NewSessionRepository(cache)
 	urlRepo := repository.NewURLRepository(db)
 
 	emailService := email_service.GetSMTPEmailService(a.cfg.EmailConfig)
-	otpService := otp_service.NewOTPService(emailService)
+	otpService := otp_service.NewOTPService(emailService, otpRepo)
 
-	authService := service.NewAuthService(userRepo, sessionRepo, loginAttemptRepo, a.cfg.AccessJWTSecret, a.cfg.RefreshJWTSecret)
-	userService := service.NewUserService(userRepo)
+	authService := service.NewAuthService(userRepo, sessionRepo, otpService, a.cfg.AccessJWTSecret, a.cfg.RefreshJWTSecret)
 	urlService := service.NewURLService(urlRepo)
 
 	authHandler := handler.NewAuthHandler(authService, otpService)
-	userHandler := handler.NewUserHandler(userService)
 	urlHandler := handler.NewURLHandler(urlService)
 
 	// Router Groups
 	a.router.Use(CORSMiddleware())
+	a.router.Use(gin.Recovery())
+	a.router.Use(logger.LoggerMiddleware(a.cfg.Env, a.cfg.Component))
 	routerGroup := a.router.Group("/api/v1")
 
 	// Auth routes
 	authRouterGroup := routerGroup.Group("/auth")
 	{
 		authRouterGroup.POST("/signup", authHandler.SignUp)
+		authRouterGroup.POST("/verify-registration-otp", authHandler.VerifyRegistrationOTP)
 		authRouterGroup.POST("/login", authHandler.Login)
-		authRouterGroup.POST("/send-otp", authHandler.SendOTP)
+		authRouterGroup.POST("/refresh-token", authHandler.RefreshToken)
+		authRouterGroup.POST("/logout", authHandler.Logout)
+		authRouterGroup.POST("/forgot-password", authHandler.ForgotPassword)
+		authRouterGroup.POST("/reset-password", authHandler.ResetPassword)
 	}
 
 	// URL redirect route (public)
@@ -67,18 +73,11 @@ func (a *App) setupRoutes(db *gorm.DB) {
 	protectedRouterGroup := routerGroup.Group("")
 	protectedRouterGroup.Use(middleware.AuthMiddleware(a.cfg.AccessJWTSecret))
 	{
-		// User routes
-		userRouterGroup := protectedRouterGroup.Group("/user")
-		{
-			userRouterGroup.GET("", userHandler.GetUsers)
-			userRouterGroup.GET("/:id", userHandler.GetUser)
-		}
-
 		// URL management routes
-		urlRouterGroup := protectedRouterGroup.Group("/url")
+		protectedURLRouterGroup := protectedRouterGroup.Group("/url")
 		{
-			urlRouterGroup.POST("", urlHandler.CreateShortURL)
-			urlRouterGroup.GET("", urlHandler.GetUserURLs)
+			protectedURLRouterGroup.POST("", urlHandler.CreateShortURL)
+			protectedURLRouterGroup.GET("", urlHandler.GetUserURLs)
 		}
 	}
 }

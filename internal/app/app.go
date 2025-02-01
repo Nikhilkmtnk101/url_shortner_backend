@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nikhil/url-shortner-backend/config"
 	"github.com/nikhil/url-shortner-backend/internal/database"
+	"github.com/nikhil/url-shortner-backend/pkg/redis"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -23,8 +24,12 @@ func NewApp(cfg *config.Config) *App {
 
 func (a *App) Run() {
 	db := a.setupDatabase()
-	a.setupRoutes(db)
-	a.router.Run(":" + a.cfg.ServerPort)
+	cacheClient := a.setupCacheClient()
+	a.setupRoutes(db, cacheClient)
+	err := a.router.Run(":" + a.cfg.ServerPort)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (a *App) setupDatabase() *gorm.DB {
@@ -47,4 +52,12 @@ func (a *App) setupDatabase() *gorm.DB {
 	}
 
 	return db
+}
+
+func (a *App) setupCacheClient() redis.CacheClient {
+	client, err := redis.GetRedisClient(a.cfg.RedisConfig)
+	if err != nil {
+		panic("Failed to connect to redis")
+	}
+	return client
 }

@@ -13,7 +13,16 @@ type EmailConfig struct {
 	FromEmail    string `mapstructure:"FROM_EMAIL" mapstructure:"from_email"`
 }
 
+type RedisConfig struct {
+	Host     string `mapstructure:"REDIS_HOST"`
+	Port     string `mapstructure:"REDIS_PORT"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
+}
+
 type Config struct {
+	Env              string `mapstructure:"ENV"`
+	Component        string `mapstructure:"COMPONENT"`
 	ServerPort       string `mapstructure:"SERVER_PORT"`
 	DBHost           string `mapstructure:"DB_HOST"`
 	DBPort           string `mapstructure:"DB_PORT"`
@@ -22,8 +31,8 @@ type Config struct {
 	DBName           string `mapstructure:"DB_NAME"`
 	AccessJWTSecret  string `mapstructure:"ACCESS_JWT_SECRET"`
 	RefreshJWTSecret string `mapstructure:"REFRESH_JWT_SECRET"`
-	// Add mapstructure:",squash" to properly handle embedded struct
-	EmailConfig `mapstructure:",squash"`
+	EmailConfig      `mapstructure:",squash"`
+	RedisConfig      `mapstructure:",squash"`
 }
 
 func Load() (*Config, error) {

@@ -12,8 +12,6 @@ func RunMigrations(db *gorm.DB) error {
 	// Add migrations here
 	err := db.AutoMigrate(
 		&model.User{},
-		&model.Session{},
-		&model.LoginAttempt{},
 		&model.URL{},
 	)
 

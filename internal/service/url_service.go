@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"github.com/gin-gonic/gin"
+	"github.com/nikhil/url-shortner-backend/internal/middleware/logger"
 	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 	"time"
@@ -21,11 +23,6 @@ func NewURLService(urlRepo *repository.URLRepository) *URLService {
 }
 
 func (s *URLService) CreateShortURL(userID uint, longURL string, expiresDays int) (*model.URL, error) {
-	shortCode, err := generateShortCode()
-	if err != nil {
-		return nil, err
-	}
-
 	var expiresAt *time.Time
 	if expiresDays > 0 {
 		t := time.Now().AddDate(0, 0, expiresDays)
@@ -35,19 +32,19 @@ func (s *URLService) CreateShortURL(userID uint, longURL string, expiresDays int
 	url := &model.URL{
 		UserID:    userID,
 		LongURL:   longURL,
-		ShortCode: shortCode,
 		ExpiresAt: expiresAt,
 	}
 
-	err = s.urlRepo.Create(url)
+	createdURL, err := s.urlRepo.Create(url)
 	if err != nil {
 		return nil, err
 	}
 
-	return url, nil
+	return createdURL, nil
 }
 
-func (s *URLService) GetLongURL(shortCode string) (string, error) {
+func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (string, error) {
+	log := logger.GetLogger(ctx)
 	url, err := s.urlRepo.FindByShortCode(shortCode)
 	if err != nil {
 		return "", err
@@ -59,8 +56,8 @@ func (s *URLService) GetLongURL(shortCode string) (string, error) {
 
 	err = s.urlRepo.IncrementClicks(shortCode)
 	if err != nil {
-		// Log error but don't fail the request
-		// log.Printf("Failed to increment clicks: %v", err)
+		log.Warnf("increment clicks failed: %v", err)
+		return "", err
 	}
 
 	return url.LongURL, nil
