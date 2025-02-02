@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/nikhil/url-shortner-backend/internal/dto"
-	"github.com/nikhil/url-shortner-backend/internal/model"
-	"github.com/nikhil/url-shortner-backend/internal/service"
-	"github.com/nikhil/url-shortner-backend/internal/service/otp_service"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/nikhil/url-shortner-backend/internal/dto"
+	"github.com/nikhil/url-shortner-backend/internal/service"
+	"github.com/nikhil/url-shortner-backend/internal/service/otp_service"
+	"github.com/nikhil/url-shortner-backend/internal/utils"
 )
 
 type AuthHandler struct {
@@ -23,143 +24,108 @@ func NewAuthHandler(authService *service.AuthService, otpService otp_service.IOT
 }
 
 func (h *AuthHandler) setSecureCookie(ctx *gin.Context, name, value string, maxAge int, env string) {
-	// Determine secure and domain settings based on environment
-	var secure, httpOnly bool
-	var domain string
-
-	switch env {
-	case "prod":
-		secure = true
-		httpOnly = true
-		domain = "yourproductiondomain.com" // Replace with your actual domain
-	case "stage", "uat":
-		secure = true
-		httpOnly = true
-		domain = "staging.yourdomain.com" // Replace with actual staging domain
-	default: // "local" or others
-		secure = false
-		httpOnly = true
-		domain = ""
-	}
-
-	ctx.SetCookie(
-		name,     // Cookie name
-		value,    // Cookie value
-		maxAge,   // Max age in seconds
-		"/",      // Path
-		domain,   // Domain
-		secure,   // Secure flag
-		httpOnly, // HTTPOnly flag
-	)
+	shouldSecure := os.Getenv("SHOULD_SECURE") == "true"
+	shouldHTTPOnly := os.Getenv("SHOULD_HTTP_ONLY") == "true"
+	domain := os.Getenv("DOMAIN")
+	ctx.SetCookie(name, value, maxAge, "/", domain, shouldSecure, shouldHTTPOnly)
 }
 
 func (h *AuthHandler) SignUp(c *gin.Context) {
 	var signUpReq dto.SignupRequest
 	if err := c.ShouldBindJSON(&signUpReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	var user *model.User
-	var err error
-	if user, err = h.authService.SignUp(c, &signUpReq); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusBadRequest).SetMessage("Invalid request").SetErrorCode("BAD_REQUEST").Build(c)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    user,
-	})
+	user, err := h.authService.SignUp(c, &signUpReq)
+	if err != nil {
+		utils.NewResponse().SetStatus(http.StatusInternalServerError).SetMessage(err.Error()).SetErrorCode("INTERNAL_ERROR").Build(c)
+		return
+	}
+
+	utils.NewResponse().SetStatus(http.StatusCreated).SetMessage("User created successfully").SetData(user).Build(c)
 }
 
 func (h *AuthHandler) VerifyRegistrationOTP(c *gin.Context) {
 	var verifyRegistrationOTPRequest dto.VerifyRegistrationOTPRequest
 	if err := c.ShouldBindJSON(&verifyRegistrationOTPRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusBadRequest).SetMessage("Invalid request").SetErrorCode("BAD_REQUEST").Build(c)
 		return
 	}
 
 	err := h.authService.RegisterUser(c, verifyRegistrationOTPRequest.Email, verifyRegistrationOTPRequest.OTP)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusInternalServerError).SetMessage(err.Error()).SetErrorCode("INTERNAL_ERROR").Build(c)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	utils.NewResponse().SetStatus(http.StatusCreated).SetMessage("User created successfully").Build(c)
 }
 
 func (h *AuthHandler) Login(ctx *gin.Context) {
 	var loginRequest dto.LoginRequest
 	if err := ctx.ShouldBindJSON(&loginRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusBadRequest).SetMessage("Invalid request").SetErrorCode("BAD_REQUEST").Build(ctx)
 		return
 	}
 
 	token, err := h.authService.Login(ctx, loginRequest.Email, loginRequest.Password)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusUnauthorized).SetMessage("Unauthorized").SetErrorCode("UNAUTHORIZED").Build(ctx)
 		return
 	}
 	h.setSecureCookie(ctx, "refresh_token", token.RefreshToken, 7*24*60*60, os.Getenv("ENV"))
-	ctx.JSON(http.StatusOK, gin.H{"data": map[string]string{"access_token": token.AccessToken}})
+	utils.NewResponse().SetStatus(http.StatusOK).SetMessage("Login successful").SetData(map[string]string{"access_token": token.AccessToken}).Build(ctx)
 }
 
 func (h *AuthHandler) RefreshToken(ctx *gin.Context) {
-	// Read refresh token from cookie
 	refreshToken, err := ctx.Cookie("refresh_token")
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Missing refresh token"})
+		utils.NewResponse().SetStatus(http.StatusUnauthorized).SetMessage("Missing refresh token").SetErrorCode("UNAUTHORIZED").Build(ctx)
 		return
 	}
 	refreshTokenResponse, err := h.authService.RefreshToken(ctx, refreshToken)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
+		utils.NewResponse().SetStatus(http.StatusInternalServerError).SetMessage("Something went wrong").SetErrorCode("INTERNAL_ERROR").Build(ctx)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"data": *refreshTokenResponse})
+	utils.NewResponse().SetStatus(http.StatusOK).SetMessage("Token refreshed successfully").SetData(refreshTokenResponse).Build(ctx)
 }
 
 func (h *AuthHandler) Logout(ctx *gin.Context) {
-	// Read refresh token from cookie
 	refreshToken, err := ctx.Cookie("refresh_token")
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Missing refresh token"})
+		utils.NewResponse().SetStatus(http.StatusUnauthorized).SetMessage("Missing refresh token").SetErrorCode("UNAUTHORIZED").Build(ctx)
 		return
 	}
-	err = h.authService.Logout(ctx, refreshToken)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Something went wrong"})
+	if err = h.authService.Logout(ctx, refreshToken); err != nil {
+		utils.NewResponse().SetStatus(http.StatusInternalServerError).SetMessage("Something went wrong").SetErrorCode("INTERNAL_ERROR").Build(ctx)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Successfully logged out"})
+	utils.NewResponse().SetStatus(http.StatusOK).SetMessage("Successfully logged out").Build(ctx)
 }
 
 func (h *AuthHandler) ForgotPassword(ctx *gin.Context) {
 	var forgotPasswordRequest dto.ForgotPasswordRequest
 	if err := ctx.ShouldBindJSON(&forgotPasswordRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	}
-	err := h.authService.ForgotPassword(ctx, forgotPasswordRequest.Email)
-	if err != nil {
-		ctx.JSON(http.StatusInsufficientStorage, gin.H{"error": "Something went wrong"})
+		utils.NewResponse().SetStatus(http.StatusBadRequest).SetMessage("Invalid request").SetErrorCode("BAD_REQUEST").Build(ctx)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "otp successfully sent"})
+	if err := h.authService.ForgotPassword(ctx, forgotPasswordRequest.Email); err != nil {
+		utils.NewResponse().SetStatus(http.StatusInternalServerError).SetMessage("Something went wrong").SetErrorCode("INTERNAL_ERROR").Build(ctx)
+		return
+	}
+	utils.NewResponse().SetStatus(http.StatusOK).SetMessage("OTP successfully sent").Build(ctx)
 }
 
 func (h *AuthHandler) ResetPassword(ctx *gin.Context) {
 	var resetPasswordRequest dto.ResetPasswordRequest
 	if err := ctx.ShouldBindJSON(&resetPasswordRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse().SetStatus(http.StatusBadRequest).SetMessage("Invalid request").SetErrorCode("BAD_REQUEST").Build(ctx)
 		return
 	}
-	err := h.authService.ResetPassword(
-		ctx,
-		resetPasswordRequest.Email,
-		resetPasswordRequest.OTP,
-		resetPasswordRequest.NewPassword,
-	)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Something went wrong"})
+	if err := h.authService.ResetPassword(ctx, resetPasswordRequest.Email, resetPasswordRequest.OTP, resetPasswordRequest.NewPassword); err != nil {
+		utils.NewResponse().SetStatus(http.StatusUnauthorized).SetMessage("Something went wrong").SetErrorCode("UNAUTHORIZED").Build(ctx)
 		return
 	}
+	utils.NewResponse().SetStatus(http.StatusOK).SetMessage("Password reset successful").Build(ctx)
 }

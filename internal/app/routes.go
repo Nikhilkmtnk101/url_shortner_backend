@@ -71,7 +71,7 @@ func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
 
 	// Protected routes - authentication middleware
 	protectedRouterGroup := routerGroup.Group("")
-	protectedRouterGroup.Use(middleware.AuthMiddleware(a.cfg.AccessJWTSecret))
+	protectedRouterGroup.Use(middleware.AuthMiddleware(sessionRepo, a.cfg.AccessJWTSecret))
 	{
 		// URL management routes
 		protectedURLRouterGroup := protectedRouterGroup.Group("/url")

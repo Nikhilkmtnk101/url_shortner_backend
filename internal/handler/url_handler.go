@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/nikhil/url-shortner-backend/internal/dto"
 	"github.com/nikhil/url-shortner-backend/internal/service"
-	"net/http"
+	"github.com/nikhil/url-shortner-backend/internal/utils"
 )
 
 type URLHandler struct {
@@ -21,7 +23,12 @@ func (h *URLHandler) CreateShortURL(ctx *gin.Context) {
 	var createShortURLRequest dto.CreateShortURLRequest
 
 	if err := ctx.ShouldBindJSON(&createShortURLRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse().
+			SetStatus(http.StatusBadRequest).
+			SetMessage("Invalid request payload").
+			SetErrorCode("BAD_REQUEST").
+			SetData(nil).
+			Build(ctx)
 		return
 	}
 
@@ -32,18 +39,33 @@ func (h *URLHandler) CreateShortURL(ctx *gin.Context) {
 	userID := ctx.GetUint("user_id")
 	url, err := h.urlService.CreateShortURL(userID, createShortURLRequest.LongURL, createShortURLRequest.ExpiresDays)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse().
+			SetStatus(http.StatusInternalServerError).
+			SetMessage("Failed to create short URL").
+			SetErrorCode("INTERNAL_ERROR").
+			SetData(nil).
+			Build(ctx)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, url)
+	utils.NewResponse().
+		SetStatus(http.StatusCreated).
+		SetMessage("Short URL created successfully").
+		SetErrorCode("").
+		SetData(url).
+		Build(ctx)
 }
 
 func (h *URLHandler) RedirectToLongURL(ctx *gin.Context) {
 	shortCode := ctx.Param("shortCode")
 	longURL, err := h.urlService.GetLongURL(ctx, shortCode)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "URL not found or expired"})
+		utils.NewResponse().
+			SetStatus(http.StatusNotFound).
+			SetMessage("URL not found or expired").
+			SetErrorCode("NOT_FOUND").
+			SetData(nil).
+			Build(ctx)
 		return
 	}
 
@@ -54,9 +76,19 @@ func (h *URLHandler) GetUserURLs(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	urls, err := h.urlService.GetUserURLs(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse().
+			SetStatus(http.StatusInternalServerError).
+			SetMessage("Failed to fetch user URLs").
+			SetErrorCode("INTERNAL_ERROR").
+			SetData(nil).
+			Build(c)
 		return
 	}
 
-	c.JSON(http.StatusOK, urls)
+	utils.NewResponse().
+		SetStatus(http.StatusOK).
+		SetMessage("User URLs fetched successfully").
+		SetErrorCode("").
+		SetData(urls).
+		Build(c)
 }
