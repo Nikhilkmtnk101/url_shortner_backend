@@ -2,10 +2,9 @@
 package service
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/nikhil/url-shortner-backend/internal/dto"
 	"github.com/nikhil/url-shortner-backend/internal/middleware/logger"
 	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
@@ -22,12 +21,11 @@ func NewURLService(urlRepo *repository.URLRepository) *URLService {
 	}
 }
 
-func (s *URLService) CreateShortURL(userID uint, longURL string, expiresDays int) (*model.URL, error) {
+func (s *URLService) CreateShortURL(ctx *gin.Context, userID uint, longURL string, expiresDays int) (*model.URL, error) {
+	log := logger.GetLogger(ctx)
 	var expiresAt *time.Time
-	if expiresDays > 0 {
-		t := time.Now().AddDate(0, 0, expiresDays)
-		expiresAt = &t
-	}
+	t := time.Now().AddDate(0, 0, expiresDays)
+	expiresAt = &t
 
 	url := &model.URL{
 		UserID:    userID,
@@ -37,10 +35,34 @@ func (s *URLService) CreateShortURL(userID uint, longURL string, expiresDays int
 
 	createdURL, err := s.urlRepo.Create(url)
 	if err != nil {
+		log.Errorf("CreateShortURL err: %v", err)
 		return nil, err
 	}
 
 	return createdURL, nil
+}
+
+func (s *URLService) CreateShortURLs(
+	ctx *gin.Context, userID uint, createBulkShortURLsRequest []dto.CreateShortURLRequest,
+) ([]*model.URL, error) {
+	log := logger.GetLogger(ctx)
+	var urls []*model.URL
+	for _, request := range createBulkShortURLsRequest {
+		var expiresAt *time.Time
+		t := time.Now().AddDate(0, 0, request.ExpiresDays)
+		expiresAt = &t
+		urls = append(urls, &model.URL{
+			UserID:    userID,
+			LongURL:   request.LongURL,
+			ExpiresAt: expiresAt,
+		})
+	}
+	createdURLs, err := s.urlRepo.CreateBulk(urls)
+	if err != nil {
+		log.Errorf("CreateShortURLs err: %v", err)
+		return nil, err
+	}
+	return createdURLs, nil
 }
 
 func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (string, error) {
@@ -65,12 +87,4 @@ func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (string, err
 
 func (s *URLService) GetUserURLs(userID uint) ([]model.URL, error) {
 	return s.urlRepo.FindByUserID(userID)
-}
-
-func generateShortCode() (string, error) {
-	b := make([]byte, 6)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(b)[:6], nil
 }

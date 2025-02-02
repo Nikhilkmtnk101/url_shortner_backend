@@ -66,7 +66,7 @@ func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
 	// URL redirect route (public)
 	urlRouterGroup := routerGroup.Group("/url")
 	{
-		urlRouterGroup.GET("/s/:shortCode", urlHandler.RedirectToLongURL)
+		urlRouterGroup.GET("/:shortCode", urlHandler.RedirectToLongURL)
 	}
 
 	// Protected routes - authentication middleware
@@ -77,6 +77,7 @@ func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
 		protectedURLRouterGroup := protectedRouterGroup.Group("/url")
 		{
 			protectedURLRouterGroup.POST("", urlHandler.CreateShortURL)
+			protectedURLRouterGroup.POST("/bulk", urlHandler.CreateBulkShortURLs)
 			protectedURLRouterGroup.GET("", urlHandler.GetUserURLs)
 		}
 	}

@@ -37,7 +37,7 @@ func (h *URLHandler) CreateShortURL(ctx *gin.Context) {
 	}
 
 	userID := ctx.GetUint("user_id")
-	url, err := h.urlService.CreateShortURL(userID, createShortURLRequest.LongURL, createShortURLRequest.ExpiresDays)
+	url, err := h.urlService.CreateShortURL(ctx, userID, createShortURLRequest.LongURL, createShortURLRequest.ExpiresDays)
 	if err != nil {
 		utils.NewResponse().
 			SetStatus(http.StatusInternalServerError).
@@ -53,6 +53,41 @@ func (h *URLHandler) CreateShortURL(ctx *gin.Context) {
 		SetMessage("Short URL created successfully").
 		SetErrorCode("").
 		SetData(url).
+		Build(ctx)
+}
+
+func (h *URLHandler) CreateBulkShortURLs(ctx *gin.Context) {
+	var createBulkShortURLsRequest []dto.CreateShortURLRequest
+	if err := ctx.ShouldBindJSON(&createBulkShortURLsRequest); err != nil {
+		utils.NewResponse().
+			SetStatus(http.StatusBadRequest).
+			SetMessage("Invalid request payload").
+			SetErrorCode("BAD_REQUEST").
+			SetData(nil).
+			Build(ctx)
+		return
+	}
+	userID := ctx.GetUint("user_id")
+	for _, request := range createBulkShortURLsRequest {
+		if request.ExpiresDays == 0 {
+			request.ExpiresDays = 30
+		}
+	}
+	urls, err := h.urlService.CreateShortURLs(ctx, userID, createBulkShortURLsRequest)
+	if err != nil {
+		utils.NewResponse().
+			SetStatus(http.StatusInternalServerError).
+			SetMessage("Failed to create short URLs").
+			SetErrorCode("INTERNAL_ERROR").
+			SetData(nil).
+			Build(ctx)
+		return
+	}
+	utils.NewResponse().
+		SetStatus(http.StatusCreated).
+		SetMessage("Short URLs created successfully").
+		SetErrorCode("").
+		SetData(urls).
 		Build(ctx)
 }
 

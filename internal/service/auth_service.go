@@ -254,13 +254,20 @@ func (s *AuthService) RefreshToken(ctx *gin.Context, refreshToken string) (*dto.
 		log.Errorf("Failed to get user ID: %v", err)
 		return nil, err
 	}
-	err = s.tokenRepo.IsUserSessionIsValid(ctx, userID)
+	session, err := s.tokenRepo.GetUserSession(ctx, userID)
 	if err != nil {
 		log.Errorf("Failed to get user session: %v", err)
 		return nil, err
 	}
 	accessToken, err := s.createAccessToken(userID)
 	if err != nil {
+		return nil, err
+	}
+	session.AccessToken = accessToken
+	session.RefreshToken = refreshToken
+	err = s.tokenRepo.UpdateUserSession(ctx, userID, session)
+	if err != nil {
+		log.Errorf("Failed to update user session: %v", err)
 		return nil, err
 	}
 	return &dto.RefreshTokenResponse{AccessToken: accessToken}, nil
