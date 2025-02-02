@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nikhil/url-shortner-backend/config"
 	"github.com/nikhil/url-shortner-backend/internal/database"
+	"github.com/nikhil/url-shortner-backend/internal/utils"
 	"github.com/nikhil/url-shortner-backend/pkg/redis"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -25,8 +26,13 @@ func NewApp(cfg *config.Config) *App {
 func (a *App) Run() {
 	db := a.setupDatabase()
 	cacheClient := a.setupCacheClient()
+	err := utils.InitializeSnowflakeNode(1)
+	if err != nil {
+		panic("failed to initialize snowflake node")
+		return
+	}
 	a.setupRoutes(db, cacheClient)
-	err := a.router.Run(":" + a.cfg.ServerPort)
+	err = a.router.Run(":" + a.cfg.ServerPort)
 	if err != nil {
 		panic(err)
 	}

@@ -1,47 +1,55 @@
 package utils
 
 import (
-	"math/rand"
-	"strings"
-	"time"
+	"fmt"
+	"sync"
+
+	"github.com/bwmarrin/snowflake"
 )
 
-const base62Alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+// Base62 character set
+const base62Chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
+// Singleton instance of the Snowflake node
+var (
+	node     *snowflake.Node
+	initOnce sync.Once
+)
+
+// InitializeSnowflakeNode initializes the singleton Snowflake node
+func InitializeSnowflakeNode(nodeID int64) error {
+	var err error
+	initOnce.Do(func() {
+		node, err = snowflake.NewNode(nodeID)
+	})
+	return err
 }
 
-// Encode a number to Base62
-func toBase62(num uint) string {
+// EncodeBase62 converts an integer to a Base62 string
+func EncodeBase62(num int64) string {
 	if num == 0 {
-		return string(base62Alphabet[0])
+		return string(base62Chars[0])
 	}
-	var encoded strings.Builder
+
+	var encoded string
 	for num > 0 {
 		remainder := num % 62
-		encoded.WriteByte(base62Alphabet[remainder])
+		encoded = string(base62Chars[remainder]) + encoded
 		num /= 62
 	}
-	// Reverse the result since encoding builds it backward
-	runes := []rune(encoded.String())
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-	return string(runes)
+	return encoded
 }
 
-// GenerateURLID Generate a URL ID with random padding
-func GenerateURLID(id uint, length int) string {
-	base62 := toBase62(id)
-	paddingLength := length - len(base62)
-	if paddingLength > 0 {
-		var randomPadding strings.Builder
-		for i := 0; i < paddingLength; i++ {
-			randomPadding.WriteByte(base62Alphabet[rand.Intn(62)])
-		}
-		// Mix padding and base62 for obfuscation
-		return randomPadding.String() + base62
+// GenerateShortCode generates a unique short URL code using the singleton node
+func GenerateShortCode() (string, error) {
+	if node == nil {
+		return "", fmt.Errorf("Snowflake node is not initialized")
 	}
-	return base62
+
+	// Generate unique Snowflake ID
+	id := node.Generate().Int64()
+
+	// Convert the ID to a Base62 encoded string
+	shortCode := EncodeBase62(id)
+	return shortCode, nil
 }

@@ -3,7 +3,6 @@ package repository
 import (
 	"errors"
 	"github.com/nikhil/url-shortner-backend/internal/model"
-	"github.com/nikhil/url-shortner-backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
@@ -17,72 +16,12 @@ func NewURLRepository(db *gorm.DB) *URLRepository {
 	return &URLRepository{db: db}
 }
 
-func (r *URLRepository) Create(url *model.URL) (*model.URL, error) {
-	var createdURL model.URL
-
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// First create the URL to get the ID
-		if err := tx.Create(url).Error; err != nil {
-			return err
-		}
-
-		// Generate short code from the ID
-		shortCode := utils.GenerateURLID(url.ID, 6)
-
-		// Update the URL with the generated short code
-		if err := tx.Model(url).Update("short_code", shortCode).Error; err != nil {
-			return err
-		}
-
-		// Fetch the complete model
-		if err := tx.First(&createdURL, url.ID).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &createdURL, nil
+func (r *URLRepository) Create(url *model.URL) error {
+	return r.db.Create(url).Error
 }
 
-func (r *URLRepository) CreateBulk(urls []*model.URL) ([]*model.URL, error) {
-	var createdURLs []*model.URL
-
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// Create all URLs in bulk
-		if err := tx.Create(&urls).Error; err != nil {
-			return err
-		}
-
-		// Generate short codes for each URL and update them
-		for _, url := range urls {
-			shortCode := utils.GenerateURLID(url.ID, 6)
-			if err := tx.Model(url).Update("short_code", shortCode).Error; err != nil {
-				return err
-			}
-		}
-
-		// Fetch the complete models
-		for _, url := range urls {
-			var createdURL model.URL
-			if err := tx.First(&createdURL, url.ID).Error; err != nil {
-				return err
-			}
-			createdURLs = append(createdURLs, &createdURL)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return createdURLs, nil
+func (r *URLRepository) CreateBulk(urls []*model.URL) error {
+	return r.db.Create(urls).Error
 }
 
 func (r *URLRepository) FindByShortCode(shortCode string) (*model.URL, error) {

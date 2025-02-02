@@ -8,6 +8,7 @@ import (
 	"github.com/nikhil/url-shortner-backend/internal/middleware/logger"
 	"github.com/nikhil/url-shortner-backend/internal/model"
 	"github.com/nikhil/url-shortner-backend/internal/repository"
+	"github.com/nikhil/url-shortner-backend/internal/utils"
 	"time"
 )
 
@@ -26,20 +27,25 @@ func (s *URLService) CreateShortURL(ctx *gin.Context, userID uint, longURL strin
 	var expiresAt *time.Time
 	t := time.Now().AddDate(0, 0, expiresDays)
 	expiresAt = &t
+	shortCode, err := utils.GenerateShortCode()
+	if err != nil {
+		return nil, err
+	}
 
 	url := &model.URL{
 		UserID:    userID,
 		LongURL:   longURL,
 		ExpiresAt: expiresAt,
+		ShortCode: shortCode,
 	}
 
-	createdURL, err := s.urlRepo.Create(url)
+	err = s.urlRepo.Create(url)
 	if err != nil {
 		log.Errorf("CreateShortURL err: %v", err)
 		return nil, err
 	}
 
-	return createdURL, nil
+	return url, nil
 }
 
 func (s *URLService) CreateShortURLs(
@@ -51,18 +57,23 @@ func (s *URLService) CreateShortURLs(
 		var expiresAt *time.Time
 		t := time.Now().AddDate(0, 0, request.ExpiresDays)
 		expiresAt = &t
+		shortCode, err := utils.GenerateShortCode()
+		if err != nil {
+			return nil, err
+		}
 		urls = append(urls, &model.URL{
 			UserID:    userID,
 			LongURL:   request.LongURL,
 			ExpiresAt: expiresAt,
+			ShortCode: shortCode,
 		})
 	}
-	createdURLs, err := s.urlRepo.CreateBulk(urls)
+	err := s.urlRepo.CreateBulk(urls)
 	if err != nil {
 		log.Errorf("CreateShortURLs err: %v", err)
 		return nil, err
 	}
-	return createdURLs, nil
+	return urls, nil
 }
 
 func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (string, error) {
