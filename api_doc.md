@@ -17,7 +17,7 @@ This document provides details of the endpoints available in the **URL Shortener
 {
   "name": "Nikhil Kumar",
   "email": "nikhil.kumar.civ17@itbhu.ac.in",
-  "password": "nikhil@1999"
+  "password": "password"
 }
 ```
 
@@ -47,7 +47,7 @@ This document provides details of the endpoints available in the **URL Shortener
 ```json
 {
   "email": "nikhil.kumar.civ17@itbhu.ac.in",
-  "password": "nikhil@1999"
+  "password": "password"
 }
 ```
 
@@ -71,14 +71,7 @@ This document provides details of the endpoints available in the **URL Shortener
 
 ### 5. Refresh Token
 **POST** `/auth/refresh-token`
-
-**Request Body:**
-```json
-{
-  "email": "nikhilkmtnk21@gmail.com",
-  "password": "nikhil@1999"
-}
-```
+**From Cookie it takes jwt refresh token**
 
 **Description:** Refreshes the authentication token.
 
@@ -91,7 +84,7 @@ This document provides details of the endpoints available in the **URL Shortener
 ```json
 {
   "email": "nikhilkmtnk21@gmail.com",
-  "new_password": "nikhil@1999"
+  "new_password": "password"
 }
 ```
 
@@ -106,7 +99,7 @@ This document provides details of the endpoints available in the **URL Shortener
 ```json
 {
   "email": "nikhilkmtnk21@gmail.com",
-  "password": "nikhil@1999"
+  "password": "password"
 }
 ```
 
@@ -124,8 +117,10 @@ This document provides details of the endpoints available in the **URL Shortener
 **Request Body:**
 ```json
 {
-  "long_url": "https://signin.aws.amazon.com/signup?request_type=register",
-  "expires_days": 30
+  "long_url": "https://jwt.io/",
+  "expires_days": 30,
+  "password": "password",
+  "alias": "xyzwsk"
 }
 ```
 
@@ -134,7 +129,7 @@ This document provides details of the endpoints available in the **URL Shortener
 ---
 
 ### 9. Generate Bulk Short URLs
-**POST** `/url`
+**POST** `/url/bulk`
 
 **Headers:**
 - Authorization: Bearer `YOUR_JWT_TOKEN`
@@ -142,10 +137,20 @@ This document provides details of the endpoints available in the **URL Shortener
 
 **Request Body:**
 ```json
-{
-  "long_url": "https://signin.aws.amazon.com/signup?request_type=register",
-  "expires_days": 30
-}
+[
+  {
+    "long_url": "https://jwt.io/",
+    "expires_days": 30,
+    "password": "password",
+    "alias": "xyzwsk2"
+  },
+  {
+    "long_url": "https://jwt.io/",
+    "expires_days": 30,
+    "password": "password",
+    "alias": "xyzwskq"
+  }
+]
 ```
 
 **Description:** Generates multiple short URLs in bulk.
@@ -164,7 +169,7 @@ This document provides details of the endpoints available in the **URL Shortener
 ---
 
 ### 11. Redirect URL
-**GET** `/url/s/{shortCode}`
+**GET** `/url/{shortCode}`
 
 **Headers:**
 - Content-Type: application/json
