@@ -173,6 +173,19 @@ This document provides details of the endpoints available in the **URL Shortener
 
 ---
 
+### 12. Generate QR Code for Short URL
+**GET** `/url/qr/{shortCode}`
+
+**Headers:**
+- Content-Type: application/json
+
+**Description:** Generates a QR code for the given short URL.
+
+**Response:**
+Returns an image in `image/png` format.
+
+---
+
 ## Example Usage
 
 ### Generate Short URL (cURL)
@@ -185,3 +198,4 @@ curl -X POST http://localhost:8080/urls \
     "expires_days": 30
   }'
 ```
+

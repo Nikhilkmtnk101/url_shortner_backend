@@ -79,6 +79,7 @@ func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
 			protectedURLRouterGroup.POST("", urlHandler.CreateShortURL)
 			protectedURLRouterGroup.POST("/bulk", urlHandler.CreateBulkShortURLs)
 			protectedURLRouterGroup.GET("", urlHandler.GetUserURLs)
+			protectedURLRouterGroup.GET("/qr/:shortCode", urlHandler.GenerateQRCode)
 		}
 	}
 }

@@ -103,8 +103,39 @@ func (h *URLHandler) RedirectToLongURL(ctx *gin.Context) {
 			Build(ctx)
 		return
 	}
-
 	ctx.Redirect(http.StatusMovedPermanently, longURL)
+}
+
+func (h *URLHandler) GenerateQRCode(ctx *gin.Context) {
+	shortCode := ctx.Param("shortCode")
+	if shortCode == "" {
+		utils.NewResponse().
+			SetStatus(http.StatusBadRequest).
+			SetMessage("URL parameter is required").
+			SetErrorCode("BAD_REQUEST").
+			SetData(nil).
+			Build(ctx)
+		return
+	}
+	qrCodeBase64, err := h.urlService.GenerateQRCodeBase64(ctx, shortCode)
+	if err != nil {
+		utils.NewResponse().
+			SetStatus(http.StatusInternalServerError).
+			SetMessage("Failed to generate QRCode").
+			SetErrorCode("INTERNAL_ERROR").
+			SetData(nil).
+			Build(ctx)
+		return
+	}
+	data := map[string]interface{}{
+		"qrCodeBase64": qrCodeBase64,
+	}
+	utils.NewResponse().
+		SetStatus(http.StatusOK).
+		SetMessage("QRCode generated successfully").
+		SetErrorCode("").
+		SetData(data).
+		Build(ctx)
 }
 
 func (h *URLHandler) GetUserURLs(c *gin.Context) {
