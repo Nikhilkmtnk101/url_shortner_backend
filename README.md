@@ -1,26 +1,24 @@
 # URL Shortener Backend Service
 
 ## Overview
-This is the backend service for a robust and scalable URL Shortener application. It provides high-performance URL shortening, redirection, and analytics with advanced security features. The service is built using **Golang**, **PostgreSQL**, **Redis**, and deployed on **AWS**.
+This is the backend service for a robust and scalable URL Shortener application. It provides high-performance URL shortening, redirection, and analytics with advanced security features. The service is built using **Golang**, **PostgreSQL** and **Redis**.
 
 ## Features
+- **User Management**: Secure authentication and authorization using JWT and OTP features to change and update passwords.
 - **URL Shortening**: Convert long URLs into short, easily shareable links.
 - **Custom Aliases**: Users can create custom short links.
 - **Redirection**: Seamless redirection to original URLs.
 - **Expiry Dates**: Set expiration dates for short links.
 - **Bulk Creation**: Generate multiple short URLs at once.
-- **Analytics Dashboard**: Track link clicks, geographic locations, referrers, and more.
 - **QR Code Generation**: Generate QR codes for shortened URLs.
-- **User Management**: Secure authentication and authorization using JWT.
-- **Security Measures**: Spam prevention, password-protected links, and data encryption.
-- **Scalability**: Fast lookups, load balancing, and caching with Redis.
+- **Password Protected Links**: Enable users to create password-protected short URLs.
+- **Analytics Dashboard**: A dashboard where users can view all the links they have created, along with detailed information such as the number of clicks and other insights.
 
 ## Tech Stack
 - **Backend**: Golang
 - **Database**: PostgreSQL
 - **Cache**: Redis
 - **Security**: JWT authentication, encryption
-- **Infrastructure**: AWS (S3, EC2, Lambda, RDS)
 
 ## Installation
 ### Prerequisites
