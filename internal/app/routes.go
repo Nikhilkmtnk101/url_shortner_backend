@@ -46,6 +46,7 @@ func (a *App) setupRoutes(db *gorm.DB, cache redis.CacheClient) {
 	urlHandler := handler.NewURLHandler(urlService)
 
 	// Router Groups
+	a.router.LoadHTMLGlob("templates/*")
 	a.router.Use(CORSMiddleware())
 	a.router.Use(gin.Recovery())
 	a.router.Use(logger.LoggerMiddleware(a.cfg.Env, a.cfg.Component))

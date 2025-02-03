@@ -12,6 +12,7 @@ import (
 	"github.com/nikhil/url-shortner-backend/internal/repository"
 	"github.com/nikhil/url-shortner-backend/internal/utils"
 	"github.com/skip2/go-qrcode"
+	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
@@ -25,21 +26,31 @@ func NewURLService(urlRepo *repository.URLRepository) *URLService {
 	}
 }
 
-func (s *URLService) CreateShortURL(ctx *gin.Context, userID uint, longURL string, expiresDays int) (*model.URL, error) {
+func (s *URLService) CreateShortURL(ctx *gin.Context, userID uint, req *dto.CreateShortURLRequest) (*model.URL, error) {
 	log := logger.GetLogger(ctx)
 	var expiresAt *time.Time
-	t := time.Now().AddDate(0, 0, expiresDays)
+	t := time.Now().AddDate(0, 0, req.ExpiresDays)
 	expiresAt = &t
-	shortCode, err := utils.GenerateShortCode()
+	var err error
+	if req.Alias == "" {
+		req.Alias, err = utils.GenerateShortCode()
+	}
+
 	if err != nil {
+		return nil, err
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Errorf("Failed to hash password: %v", err)
 		return nil, err
 	}
 
 	url := &model.URL{
 		UserID:    userID,
-		LongURL:   longURL,
+		LongURL:   req.LongURL,
 		ExpiresAt: expiresAt,
-		ShortCode: shortCode,
+		ShortCode: req.Alias,
+		Password:  string(hashedPassword),
 	}
 
 	err = s.urlRepo.Create(url)
@@ -60,15 +71,24 @@ func (s *URLService) CreateShortURLs(
 		var expiresAt *time.Time
 		t := time.Now().AddDate(0, 0, request.ExpiresDays)
 		expiresAt = &t
-		shortCode, err := utils.GenerateShortCode()
+		var err error
+		if request.Alias == "" {
+			request.Alias, err = utils.GenerateShortCode()
+		}
 		if err != nil {
+			return nil, err
+		}
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+		if err != nil {
+			log.Errorf("Failed to hash password: %v", err)
 			return nil, err
 		}
 		urls = append(urls, &model.URL{
 			UserID:    userID,
 			LongURL:   request.LongURL,
 			ExpiresAt: expiresAt,
-			ShortCode: shortCode,
+			ShortCode: request.Alias,
+			Password:  string(hashedPassword),
 		})
 	}
 	err := s.urlRepo.CreateBulk(urls)
@@ -79,24 +99,24 @@ func (s *URLService) CreateShortURLs(
 	return urls, nil
 }
 
-func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (string, error) {
+func (s *URLService) GetLongURL(ctx *gin.Context, shortCode string) (*model.URL, error) {
 	log := logger.GetLogger(ctx)
 	url, err := s.urlRepo.FindByShortCode(shortCode)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
-		return "", errors.New("url has expired")
+		return nil, errors.New("url has expired")
 	}
 
 	err = s.urlRepo.IncrementClicks(shortCode)
 	if err != nil {
-		log.Warnf("increment clicks failed: %v", err)
-		return "", err
+		log.Errorf("increment clicks failed: %v", err)
+		return nil, err
 	}
 
-	return url.LongURL, nil
+	return url, nil
 }
 
 func (s *URLService) GetUserURLs(userID uint) ([]model.URL, error) {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,11 @@ func (h *URLHandler) CreateShortURL(ctx *gin.Context) {
 	}
 
 	userID := ctx.GetUint("user_id")
-	url, err := h.urlService.CreateShortURL(ctx, userID, createShortURLRequest.LongURL, createShortURLRequest.ExpiresDays)
+	url, err := h.urlService.CreateShortURL(
+		ctx,
+		userID,
+		&createShortURLRequest,
+	)
 	if err != nil {
 		utils.NewResponse().
 			SetStatus(http.StatusInternalServerError).
@@ -93,6 +98,8 @@ func (h *URLHandler) CreateBulkShortURLs(ctx *gin.Context) {
 
 func (h *URLHandler) RedirectToLongURL(ctx *gin.Context) {
 	shortCode := ctx.Param("shortCode")
+	password := ctx.DefaultQuery("password", "")
+
 	longURL, err := h.urlService.GetLongURL(ctx, shortCode)
 	if err != nil {
 		utils.NewResponse().
@@ -103,7 +110,13 @@ func (h *URLHandler) RedirectToLongURL(ctx *gin.Context) {
 			Build(ctx)
 		return
 	}
-	ctx.Redirect(http.StatusMovedPermanently, longURL)
+	err1 := bcrypt.CompareHashAndPassword([]byte(longURL.Password), []byte(""))
+	err2 := bcrypt.CompareHashAndPassword([]byte(longURL.Password), []byte(password))
+	if err1 != nil && err2 != nil {
+		ctx.HTML(http.StatusOK, "password_form.html", gin.H{"shortCode": shortCode})
+		return
+	}
+	ctx.Redirect(http.StatusMovedPermanently, longURL.LongURL)
 }
 
 func (h *URLHandler) GenerateQRCode(ctx *gin.Context) {
